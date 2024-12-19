@@ -16,6 +16,13 @@ The Bosch code is based on the COINES hardware platform. COINES allows users to 
 
 The driver uses the Linux I2C interface (https://www.kernel.org/doc/Documentation/i2c/dev-interface). It uses an ioctl to access the kernel driver. The buffer detail is defined in linux/i2c-dev.h.
 
+## Clone
+This repo uses a git sub module for utility functions. Use this command to clone both the repo and the sub module (assuming ssh access):
+git clone --recurse-submodules git@github.com:iapaddler/utils.git
+
+## Hardware
+The project has been tested on a pi5 platform. This uses an ARM processor. The sensor is wired into the GPIO pins. In order to test basic functionality on an X64 platform without the sensor set the constant X86 to 1. It defaults to 0.
+
 ## Build
 There are 2 steps to build sensor serve. 1) The driver and 2) the server.
 ### Driver Build

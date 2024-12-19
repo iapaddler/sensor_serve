@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 libc = "0.2.162"
 chrono = "0.4.38"
+utils = { path = "./utils" }

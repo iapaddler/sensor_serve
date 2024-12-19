@@ -1,15 +1,14 @@
-use chrono::Local;
 use libc::{c_double, c_int};
-use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, Write};
 use std::thread;
 use std::time::Duration;
 
-const PERIOD: u64 = 3;
+const PERIOD: u64 = 300;
 const DATA_SIZE: usize = 100;
 const DATA_FILE: &str = "sensor.dat";
+const X86: u32 = 0;
 
 #[repr(C)]
 pub struct sensor_data_t {
@@ -20,44 +19,6 @@ pub struct sensor_data_t {
 //#[link(name = "rsd", kind = "static")]
 extern "C" {
     fn getSensorData(sdata: &sensor_data_t) -> c_int;
-}
-
-fn debug(msg: String) {
-    let args: Vec<String> = env::args().collect();
-    //println!("num args: {}", args.len());
-
-    if args.len() >= 3 {
-        let arg = match args.get(1) {
-            Some(cmd) => cmd,
-            None => {
-                eprintln!("Unknown arguments provided");
-                return;
-            }
-        };
-
-        let dcmd = String::from("-d");
-        if arg == dcmd.as_str() {
-            let dval = match args.get(2) {
-                Some(val) => val,
-                None => {
-                    eprintln!("Unknown arguments provided!");
-                    return;
-                }
-            };
-
-            let gdbg = match dval.parse::<u64>() {
-                Ok(val) => val,
-                Err(e) => {
-                    eprintln!("Unable to parse number from argument: {}", e);
-                    return;
-                }
-            };
-
-            if gdbg > 0 {
-                println!("{}", msg);
-            }
-        }
-    }
 }
 
 // remove the first/oldest line in the sensor data file
@@ -76,7 +37,7 @@ fn remove_oldest(file_path: &str) -> io::Result<()> {
         writeln!(file, "{}", line)?;
     }
 
-    debug(format!("First line deleted from {}", file_path));
+    utils::debug(format!("First line deleted from {}", file_path));
     Ok(())
 }
 
@@ -103,24 +64,17 @@ fn write_sensor_data(sdata: &sensor_data_t) -> Result<u32, io::Error> {
         .create(true)
         .open(DATA_FILE)?;
 
-    // Current local date and time
-    let now = Local::now();
-
     // Write text to the end of the file
-    writeln!(
-        file,
-        "{:.2} {:.2} {}",
-        sdata.pressure, sdata.temperature, now
-    )?;
+    writeln!(file, "{:.2} {:.2}", sdata.pressure, sdata.temperature)?;
 
-    debug(format!("Data appended to {}", DATA_FILE));
+    utils::debug(format!("Data appended to {}", DATA_FILE));
 
     match count_lines(DATA_FILE) {
         Ok(line_count) => {
-            debug(format!("The file has {} lines.", line_count));
+            utils::debug(format!("The file has {} lines.", line_count));
             if line_count >= DATA_SIZE {
                 match remove_oldest(DATA_FILE) {
-                    Ok(()) => debug(format!(
+                    Ok(()) => utils::debug(format!(
                         "Removed oldest data from sensor data with {} lines.",
                         line_count
                     )),
@@ -135,26 +89,26 @@ fn write_sensor_data(sdata: &sensor_data_t) -> Result<u32, io::Error> {
 }
 
 fn get_sensor_data() -> u32 {
-    debug(format!("Get sensor data"));
-
     let res: u32;
     let sdata = sensor_data_t {
         temperature: 0.0,
         pressure: 0.0,
     };
 
-    unsafe {
-        getSensorData(&sdata);
+    if X86 == 0 {
+        unsafe {
+            getSensorData(&sdata);
+        }
     }
 
-    debug(format!(
+    utils::debug(format!(
         "Sensor Data: Temp {} Pressure {}",
         sdata.temperature, sdata.pressure
     ));
 
     match write_sensor_data(&sdata) {
         Ok(rslt) => {
-            debug(format!("Update Sensor data"));
+            utils::debug(format!("Update Sensor data"));
             res = rslt;
         }
         Err(e) => {
