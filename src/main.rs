@@ -1,3 +1,4 @@
+use chrono::Local;
 use libc::{c_double, c_int};
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -64,8 +65,11 @@ fn write_sensor_data(sdata: &sensor_data_t) -> Result<u32, io::Error> {
         .create(true)
         .open(DATA_FILE)?;
 
+    // Current local date and time
+    let now = Local::now();
+
     // Write text to the end of the file
-    writeln!(file, "{:.2} {:.2}", sdata.pressure, sdata.temperature)?;
+    writeln!(file, "{:.2} {:.2} {now}", sdata.pressure, sdata.temperature)?;
 
     utils::debug(format!("Data appended to {}", DATA_FILE));
 
