@@ -1,26 +1,14 @@
 use chrono::Local;
-use libc::{c_double, c_int};
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, Write};
 use std::thread;
 use std::time::Duration;
+use utils::sensor_data_t;
 
 const PERIOD: u64 = 300;
 const DATA_SIZE: usize = 100;
 const DATA_FILE: &str = "sensor.dat";
-const X86: u32 = 0;
-
-#[repr(C)]
-pub struct sensor_data_t {
-    pub temperature: c_double,
-    pub pressure: c_double,
-}
-
-//#[link(name = "rsd", kind = "static")]
-extern "C" {
-    fn getSensorData(sdata: &sensor_data_t) -> c_int;
-}
 
 // remove the first/oldest line in the sensor data file
 fn remove_oldest(file_path: &str) -> io::Result<()> {
@@ -92,21 +80,12 @@ fn write_sensor_data(sdata: &sensor_data_t) -> Result<u32, io::Error> {
     Ok(0)
 }
 
-fn get_sensor_data() -> u32 {
+fn do_sensor_data() -> u32 {
     let res: u32;
-    let sdata = sensor_data_t {
-        temperature: 0.0,
-        pressure: 0.0,
-    };
-
-    if X86 == 0 {
-        unsafe {
-            getSensorData(&sdata);
-        }
-    }
+    let sdata = utils::get_sensor_data();
 
     utils::debug(format!(
-        "Sensor Data: Temp {} Pressure {}",
+        "do_sensor_data: Temp {} Pressure {}",
         sdata.temperature, sdata.pressure
     ));
 
@@ -124,9 +103,21 @@ fn get_sensor_data() -> u32 {
     res
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
+    // Install a ctl-c handler
+    utils::ctl_c_handler();
+
+    // Start a thread that gets sensor data and notifies on a period
+    tokio::spawn(async move {
+        utils::update_and_notify().await;
+    });
+
+    // Delay before taking another measurement
+    thread::sleep(Duration::from_secs(30));
+
     loop {
-        get_sensor_data();
+        do_sensor_data();
         thread::sleep(Duration::from_secs(PERIOD));
     }
 }
